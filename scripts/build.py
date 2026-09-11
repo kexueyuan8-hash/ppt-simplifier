@@ -106,12 +106,12 @@ def add_header(slide, title, page_no=None, exam=None):
 
 def fit_pt(texts, width_in, height_in, base_pt):
     """根据文本量与容器估算合适字号(pptx 无法自动排版,保证不溢出)。"""
-    for pt in range(base_pt, base_pt - 13, -2):
+    for pt in range(base_pt, max(9, base_pt - 11), -2):
         chars_per_line = max(4.0, width_in * 72 / (pt * 1.02))
         lines = sum(max(1, math.ceil(len(t) / chars_per_line)) for t in texts)
         if lines * pt * 1.32 / 72 <= height_in:
             return pt
-    return base_pt - 12
+    return max(10, base_pt - 12)
 
 
 def fill_bullets(tf, texts, pt, color=DARK, bullet="· "):
@@ -294,7 +294,11 @@ def build_slide(prs, slide_def, work, page_no):
         src = slide_def.get("source")
         sources = [src] if isinstance(src, str) else (src or [])
         src_paths = [work / s for s in sources]
-        if src_paths and Path(src_paths[0]).exists():
+        missing = [str(p) for p in src_paths if not Path(p).exists()]
+        if missing and src_paths:
+            sys.exit(f"错误: 例题原图缺失 {missing}\n"
+                     f"例题必须无损保留,不允许缺图降级。先重新跑 extract,再 build。")
+        if src_paths:
             n = len(src_paths)
             pic_h = 4.55
             box_w = (11.7 - 0.15 * (n - 1)) / n

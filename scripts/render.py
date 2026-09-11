@@ -128,6 +128,17 @@ def pdf_to_png(pdf_path: str, out_dir: str, dpi: int = 200):
     return n
 
 
+def clear_old_pages(out_dir):
+    """清掉输出目录里旧的 slide_*.png,避免页数变化时旧图残留误导检查。"""
+    out = Path(out_dir)
+    if out.exists():
+        for p in out.glob("slide_*.png"):
+            try:
+                p.unlink()
+            except OSError:
+                pass
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--input", required=True, help="pptx 路径")
@@ -139,6 +150,7 @@ def main():
     out_dir = Path(args.out)
     if not pptx_path.exists():
         sys.exit(f"文件不存在: {pptx_path}")
+    clear_old_pages(str(out_dir))
 
     # 优先:PowerPoint COM 直接导出每页 PNG
     mode, path = render_via_powerpoint(str(pptx_path), str(out_dir), args.dpi)
