@@ -51,6 +51,7 @@ GRAY = RGBColor(0x66, 0x66, 0x66)
 LIGHT = RGBColor(0xFB, 0xFC, 0xFD)
 NOTE_BG = RGBColor(0xFF, 0xF7, 0xE0)   # 淡黄,类比/人话框
 NOTE_LINE = RGBColor(0xB9, 0x90, 0x00)
+TERM_BG = RGBColor(0xEA, 0xF1, 0xF8)   # 浅蓝,名词小抄框
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 EXAM_STYLE = {                          # 重点标签: (底色, 字色)
     "必考": (RGBColor(0xC0, 0x39, 0x2B), WHITE),
@@ -73,7 +74,8 @@ def add_header(slide, title, page_no=None, exam=None):
     p = tf.paragraphs[0]
     r = p.add_run()
     r.text = title
-    r.font.size = Pt(22 if len(title) > 25 else 26 if len(title) <= 18 else 24)
+    r.font.size = Pt(20 if len(title) > 34 else 22 if len(title) > 25
+                     else 26 if len(title) <= 18 else 24)
     r.font.bold = True
     r.font.color.rgb = WHITE
     if exam:
@@ -144,6 +146,38 @@ def add_note(slide, text, y, h=0.78, label="💡 类比"):
     r.font.color.rgb = DARK
 
 
+def add_terms(slide, terms, y):
+    """底部浅蓝色「📚 名词小抄」框:一条一个名词:解释。"""
+    h = 0.34 + 0.31 * len(terms)
+    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                   Inches(0.55), Inches(y), Inches(12.23), Inches(h))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = TERM_BG
+    shape.line.color.rgb = ACCENT
+    shape.line.width = Pt(1)
+    tf = shape.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(0.16)
+    tf.margin_right = Inches(0.16)
+    tf.margin_top = Inches(0.05)
+    tf.margin_bottom = Inches(0.03)
+    tf.vertical_anchor = MSO_ANCHOR.TOP
+    p0 = tf.paragraphs[0]
+    r0 = p0.add_run()
+    r0.text = "📚 名词小抄"
+    r0.font.size = Pt(13)
+    r0.font.bold = True
+    r0.font.color.rgb = NAVY
+    pt = fit_pt(terms, 11.9, h - 0.4, 12)
+    for t in terms:
+        p = tf.add_paragraph()
+        p.space_after = Pt(2)
+        r = p.add_run()
+        r.text = "· " + t
+        r.font.size = Pt(pt)
+        r.font.color.rgb = DARK
+
+
 def picture_fit(slide, src, left, top, max_w, max_h):
     """等比缩放插入图片,使其落在 (left, top) 最多 max_w x max_h 的盒子里。"""
     with Image.open(src) as im:
@@ -202,8 +236,11 @@ def build_slide(prs, slide_def, work, page_no):
     body_h = 5.05 if kind in ("concept", "summary") else None
 
     if kind in ("concept", "summary"):
+        terms = slide_def.get("terms") or []
         note = slide_def.get("analogy") or slide_def.get("note")
+        has_note = bool(note) and kind == "concept"
         top = slide_def.get("one_liner")
+        body_top = 1.28
         if top:
             ob = slide.shapes.add_textbox(Inches(0.6), Inches(1.18), Inches(12.1), Inches(0.4))
             otf = ob.text_frame
@@ -215,15 +252,28 @@ def build_slide(prs, slide_def, work, page_no):
             or_.font.italic = True
             or_.font.color.rgb = GRAY
             body_top = 1.62
-            body_h -= 0.44
+        # 垂直布局预算:自下而上给「名词小抄」「类比条」留位
+        if terms:
+            terms_h = 0.34 + 0.31 * len(terms)
+            terms_y = max(body_top + 1.7, 7.42 - terms_h)
+            note_h = 0.62 if has_note else 0
+            note_y = (terms_y - 0.08 - note_h) if has_note else None
+            body_bottom = (note_y if has_note else terms_y) - 0.1
+        else:
+            note_h = 0.78 if has_note else 0
+            note_y = 6.5 if has_note else None
+            body_bottom = (note_y - 0.05 if has_note else 7.4)
+        body_h = max(1.5, body_bottom - body_top)
         box = slide.shapes.add_textbox(Inches(0.6), Inches(body_top),
                                        Inches(12.1), Inches(body_h))
         tf = box.text_frame
         tf.word_wrap = True
         pt = fit_pt(slide_def.get("bullets", [""]), 12.1, body_h, 20)
         fill_bullets(tf, slide_def.get("bullets", []), pt)
-        if note and kind == "concept":
-            add_note(slide, note, 6.5)
+        if has_note:
+            add_note(slide, note, note_y, h=note_h)
+        if terms:
+            add_terms(slide, terms, terms_y)
 
     elif kind == "formula":
         src = work / slide_def.get("source", "") if slide_def.get("source") else None
