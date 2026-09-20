@@ -53,6 +53,16 @@ description: 把老师的教学课件(尤其是电子信息类专业课:信号�
 - Windows 细节:PowerShell 从 Python 子进程调用时输出 GBK;PowerPoint 导出的 PNG 文件名是中文"幻灯片N.PNG"(脚本已处理排序与重命名);目标文件被 PowerPoint 占用时覆盖会失败——改用副本名交付并告知用户。
 - 缺少 Python 依赖时按 `requirements.txt` 安装。
 
+## 讲义版产线(米白讲义风格,可选)
+
+标准通俗版(`build.py`,深色标题条)之外,还有一条更接近复习讲义的产线 `build_book.py`(米白底、章节页眉、右侧名词小抄、原图配「读图提示」):
+
+- 生成:`python scripts/build_book.py --outline ./work/book_outline.json --work ./work`
+- 使用**独立的大纲 schema**:顶层 `chapter` / `title` / `output`;页面类型 `cover` / `source`(原页整图 + `guide` + `terms`)/ 概念页(`one_liner` + `blocks`(小标题, 正文)对 + `terms` + `note`);每页可带 `verification`(核对记录,写入备注)
+- **原图字节级保留**:生成后自动把原图在成品内的位置写回大纲(`embedded_source`),之后可脱离临时渲染图目录重建
+- 运行要求:`python_libs/` 为 **Python 3.13** 打包;用 3.12 会报 lxml 导入错误——请用 3.13 运行(包内自带依赖,免安装)
+- 辅助:`python scripts/normalize_render_copy.py "源.pptx" "目标.pptx"` 用真实字体(msyh.ttc)测量并修复文字溢出(只缩字号、不改内容),并输出 `.changes.json` 记录
+
 ## 完成标准
 
 只有同时满足以下条件,才能向用户报告"已完成":
