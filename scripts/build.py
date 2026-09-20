@@ -276,19 +276,35 @@ def build_slide(prs, slide_def, work, page_no):
             add_terms(slide, terms, terms_y)
 
     elif kind == "formula":
+        terms = slide_def.get("terms") or []
+        terms_h = 0.34 + 0.31 * len(terms) if terms else 0
+        terms_y = 7.42 - terms_h if terms else None
+        note = slide_def.get("note")
+        note_y = None
+        if terms and note:
+            note_y = terms_y - 0.78 - 0.08          # 符号解释条高 0.78 + 间隙
+            image_h = max(2.2, note_y - 0.12 - 1.35)
+        elif terms:
+            image_h = max(2.2, terms_y - 1.45)
+        else:
+            if note:
+                note_y = 6.25
+            image_h = 4.4
         src = work / slide_def.get("source", "") if slide_def.get("source") else None
         if src and Path(src).exists():
-            picture_fit(slide, src, 0.8, 1.35, 11.7, 4.4)
+            picture_fit(slide, src, 0.8, 1.35, 11.7, image_h)
         elif slide_def.get("latex"):
+            (work / "assets").mkdir(parents=True, exist_ok=True)
             png = work / "assets" / f"formula_{page_no}.png"
             try:
                 latex_to_png(slide_def["latex"], str(png))
             except Exception as e:
                 sys.exit(f"formula 渲染失败(需 pip install matplotlib): {e}")
-            picture_fit(slide, png, 0.8, 1.35, 11.7, 4.4)
-        note = slide_def.get("note")
+            picture_fit(slide, png, 0.8, 1.35, 11.7, image_h)
         if note:
-            add_note(slide, note, 6.25, label="📖 符号解释")
+            add_note(slide, note, note_y, label="📖 符号解释")
+        if terms:
+            add_terms(slide, terms, terms_y)
 
     elif kind == "example":
         src = slide_def.get("source")
@@ -319,6 +335,9 @@ def build_slide(prs, slide_def, work, page_no):
         lines = [f"解析: {slide_def.get('analysis', '')}"] if slide_def.get("analysis") else []
         for i, s in enumerate(slide_def.get("steps", []), 1):
             lines.append(f"  第{i}步: {s}")
+        terms = slide_def.get("terms") or []
+        if terms:
+            lines.append("名词小抄: " + "；".join(terms))
         if lines:
             box = slide.shapes.add_textbox(Inches(0.6), Inches(6.0), Inches(12.1), Inches(1.1))
             tf = box.text_frame
