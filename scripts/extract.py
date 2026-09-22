@@ -24,11 +24,22 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 sys.path.insert(0, str(Path(__file__).parent))
 
 
+def shape_type_of(shape):
+    """安全获取形状类型:部分课件含 python-pptx 无法识别的形状,不让它中断流程。"""
+    try:
+        return shape.shape_type
+    except Exception:
+        return None
+
+
 def walk_shapes(shapes):
-    """递归遍历所有形状(包括组合里的)。"""
+    """递归遍历所有形状(包括组合里的),容错未知形状类型。"""
     for shape in shapes:
-        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            yield from walk_shapes(shape.shapes)
+        if shape_type_of(shape) == MSO_SHAPE_TYPE.GROUP:
+            try:
+                yield from walk_shapes(shape.shapes)
+            except Exception:
+                yield shape
         else:
             yield shape
 
@@ -39,11 +50,14 @@ def extract_text(pptx_path: str, out_dir: Path):
     for i, slide in enumerate(prs.slides, 1):
         items = []
         for shape in walk_shapes(slide.shapes):
-            if shape.has_text_frame and shape.text_frame.text.strip():
-                items.append({"kind": "text", "content": shape.text_frame.text.strip()})
-            elif shape.has_table:
-                rows = [[c.text.strip() for c in r.cells] for r in shape.table.rows]
-                items.append({"kind": "table", "content": rows})
+            try:
+                if shape.has_text_frame and shape.text_frame.text.strip():
+                    items.append({"kind": "text", "content": shape.text_frame.text.strip()})
+                elif shape.has_table:
+                    rows = [[c.text.strip() for c in r.cells] for r in shape.table.rows]
+                    items.append({"kind": "table", "content": rows})
+            except Exception as e:  # 单个形状解析失败不阻断整页
+                print(f"warn: 形状解析失败 slide {i}: {e}", file=sys.stderr)
         slides.append({"index": i, "items": items})
     (out_dir / "slides_text.json").write_text(
         json.dumps(slides, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -58,7 +72,7 @@ def extract_images(pptx_path: str, out_dir: Path):
     for i, slide in enumerate(prs.slides, 1):
         idx = 0
         for shape in walk_shapes(slide.shapes):
-            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+            if shape_type_of(shape) == MSO_SHAPE_TYPE.PICTURE:
                 idx += 1
                 try:
                     img = shape.image
