@@ -39,11 +39,11 @@ def make(outline_path,work):
     for i,d in enumerate(data['slides'],1):
         s=prs.slides.add_slide(prs.slide_layouts[6]); s.background.fill.solid();s.background.fill.fore_color.rgb=color(BG)
         if d['type']=='cover':
-            text(s,.8,1.2,11.5,.5,'电子技术基础 · 模拟部分',18,ink=MUTED)
+            text(s,.8,1.2,11.5,.5,data.get('course','电子技术基础 · 模拟部分'),18,ink=MUTED)
             text(s,.8,2.15,11.5,1.5,data['title'],42,True)
             text(s,.85,4.1,10.8,1.2,'概念讲清楚，例题一步一步算\n米白讲义版',22,ink=MUTED)
             rule(s,.8,5.8,11.7)
-            text(s,.85,6.1,11.2,.5,'适合已掌握电压、电流、电阻基础的自学者',17,ink=MUTED)
+            text(s,.85,6.1,11.2,.5,data.get('audience','适合已掌握电压、电流、电阻基础的自学者'),17,ink=MUTED)
             continue
         label=d.get('source_label',''); tag=d.get('exam','掌握')
         text(s,.6,.25,11.8,.3,f"第{data['chapter']}章　／　{tag}　／　{label}",11,ink=MUTED)
